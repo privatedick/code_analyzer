@@ -1,0 +1,69 @@
+# Byte-kompilerade Python-filer
+__pycache__/
+*.py[cod]
+
+# Virtuella miljöer
+venv/
+env/
+*.env
+
+# Poetry lock-fil
+poetry.lock
+
+# Konfigurationsfiler
+*.ini
+*.cfg
+
+# Systemfiler
+.DS_Store
+*.log
+*.sqlite3
+*.pyc
+*.pyo
+
+# Testrelaterade filer
+.coverage
+.cache
+.noseids
+*.coverage.*
+*.hypothesis/
+.tox/
+
+# Pyenv
+.python-version
+
+# Pytest
+htmlcov/
+.junit.xml
+.cache/
+.coverage
+
+# Editor-filer
+.idea/
+.vscode/
+
+# Temporära filer
+*.tmp
+*.temp
+*.swp
+*.bak
+*.orig
+
+# Användargenererade filer
+*.csv
+*.dat
+*.sql
+*.out
+
+# Kataloger
+node_modules/
+dist/
+build/
+site/
+
+# Dokumentationsfiler
+docs/_build/
+*.html
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints

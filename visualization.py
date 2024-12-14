@@ -1,69 +1,326 @@
+import os
+import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union, Tuple
+from datetime import datetime
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from typing import Dict, Any
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
-class Visualization:
-    def create_visualizations(self, analysis_results: Dict[str, Any]):
-        self._create_complexity_bar_chart(analysis_results)
-        self._create_style_issues_pie_chart(analysis_results)
-        self._create_function_count_histogram(analysis_results)
-        self._create_complexity_heatmap(analysis_results)
+logger = logging.getLogger(__name__)
 
-    def _create_complexity_bar_chart(self, analysis_results: Dict[str, Any]):
-        complexities = [func['complexity'] for file in analysis_results['files'] for func in file['functions']]
-        function_names = [f"{file['file']}:{func['name']}" for file in analysis_results['files'] for func in file['functions']]
+@dataclass
+class VisualizationConfig:
+    """Configuration for visualization settings."""
+    output_dir: Path
+    color_scheme: Dict[str, str]
+    figure_size: Tuple[int, int]
+    dpi: int
+    output_format: str
+    interactive: bool
+    max_points: int = 1000
+    font_size: int = 10
+    show_grid: bool = True
+    timestamp_format: str = "%Y%m%d_%H%M%S"
+
+    def __post_init__(self):
+        self.output_dir = Path(self.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+class VisualizationBase(ABC):
+    """Base class for all visualizations."""
+    
+    def __init__(self, config: VisualizationConfig):
+        self.config = config
+        self._setup_style()
+
+    def _setup_style(self) -> None:
+        """Configure matplotlib style settings."""
+        plt.style.use('seaborn')
+        sns.set_palette(list(self.config.color_scheme.values()))
+        plt.rcParams.update({
+            'font.size': self.config.font_size,
+            'figure.figsize': self.config.figure_size,
+            'figure.dpi': self.config.dpi
+        })
+
+    def _create_figure(self) -> Tuple[Figure, Axes]:
+        """Create a new figure and axes with configured settings."""
+        fig, ax = plt.subplots(figsize=self.config.figure_size)
+        if self.config.show_grid:
+            ax.grid(True, alpha=0.3)
+        return fig, ax
+
+    def _save_figure(self, fig: Figure, name: str) -> Path:
+        """Save figure with configured settings."""
+        timestamp = datetime.now().strftime(self.config.timestamp_format)
+        filename = f"{name}_{timestamp}.{self.config.output_format}"
+        output_path = self.config.output_dir / filename
         
-        plt.figure(figsize=(12, 6))
-        plt.bar(function_names, complexities)
-        plt.title('Function Complexities')
-        plt.xlabel('Functions')
-        plt.ylabel('Complexity')
-        plt.xticks(rotation=90)
-        plt.tight_layout()
-        plt.savefig('complexity_bar_chart.png')
-        plt.close()
+        try:
+            fig.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
+            logger.info(f"Saved visualization to {output_path}")
+            return output_path
+        except Exception as e:
+            logger.error(f"Failed to save visualization: {str(e)}")
+            raise
+        finally:
+            plt.close(fig)
 
-    def _create_style_issues_pie_chart(self, analysis_results: Dict[str, Any]):
-        issue_counts = {}
-        for file in analysis_results['files']:
-            for issue_type, issues in file['style_issues'].items():
-                issue_counts[issue_type] = issue_counts.get(issue_type, 0) + len(issues)
+    @abstractmethod
+    def create(self, data: Any) -> Path:
+        """Create and save the visualization."""
+        pass
+
+class ComplexityVisualization(VisualizationBase):
+    """Visualization for code complexity metrics."""
+    
+    def create(self, data: Dict[str, Any]) -> Path:
+        fig, ax = self._create_figure()
         
-        plt.figure(figsize=(10, 10))
-        plt.pie(np.array(list(issue_counts.values())), labels=list(issue_counts.keys()), autopct='%1.1f%%')
-        plt.title('Style Issues Distribution')
-        plt.savefig('style_issues_pie_chart.png')
-        plt.close()
+        try:
+            self._plot_complexity_data(data, ax)
+            return self._save_figure(fig, "complexity_analysis")
+        except Exception as e:
+            logger.error(f"Failed to create complexity visualization: {str(e)}")
+            plt.close(fig)
+            raise
 
-    def _create_function_count_histogram(self, analysis_results: Dict[str, Any]):
-        function_counts = [len(file['functions']) for file in analysis_results['files']]
+    def _plot_complexity_data(self, data: Dict[str, Any], ax: Axes) -> None:
+        """Plot complexity metrics."""
+        df = self._prepare_complexity_data(data)
         
-        plt.figure(figsize=(10, 6))
-        plt.hist(function_counts, bins=range(min(function_counts), max(function_counts) + 2, 1))
-        plt.title('Distribution of Function Counts per File')
-        plt.xlabel('Number of Functions')
-        plt.ylabel('Number of Files')
-        plt.savefig('function_count_histogram.png')
-        plt.close()
+        sns.barplot(
+            data=df,
+            x='file',
+            y='complexity',
+            hue='type',
+            ax=ax
+        )
+        
+        ax.set_title('Code Complexity Analysis')
+        ax.set_xlabel('Files')
+        ax.set_ylabel('Complexity Score')
+        ax.tick_params(axis='x', rotation=45)
 
-    def _create_complexity_heatmap(self, analysis_results: Dict[str, Any]):
-        data = []
-        for file in analysis_results['files']:
-            for func in file['functions']:
-                data.append({
-                    'file': file['file'],
-                    'function': func['name'],
-                    'complexity': func['complexity']
+    def _prepare_complexity_data(self, data: Dict[str, Any]) -> pd.DataFrame:
+        """Prepare complexity data for visualization."""
+        records = []
+        for file_data in data['results']:
+            file_name = Path(file_data.file_path).name
+            records.append({
+                'file': file_name,
+                'complexity': file_data.complexity['total'],
+                'type': 'Total'
+            })
+            if 'average_per_function' in file_data.complexity:
+                records.append({
+                    'file': file_name,
+                    'complexity': file_data.complexity['average_per_function'],
+                    'type': 'Per Function'
                 })
         
-        df = pd.DataFrame(data)
-        pivot_df = df.pivot(index='file', columns='function', values='complexity')
+        return pd.DataFrame(records)
+
+class StyleIssuesVisualization(VisualizationBase):
+    """Visualization for code style issues."""
+    
+    def create(self, data: Dict[str, Any]) -> Path:
+        fig, ax = self._create_figure()
         
-        plt.figure(figsize=(12, 8))
-        sns.heatmap(pivot_df, annot=True, cmap='YlOrRd', fmt='d')
-        plt.title('Complexity Heatmap')
-        plt.tight_layout()
-        plt.savefig('complexity_heatmap.png')
-        plt.close()
+        try:
+            self._plot_style_issues(data, ax)
+            return self._save_figure(fig, "style_issues")
+        except Exception as e:
+            logger.error(f"Failed to create style issues visualization: {str(e)}")
+            plt.close(fig)
+            raise
+
+    def _plot_style_issues(self, data: Dict[str, Any], ax: Axes) -> None:
+        """Plot style issues distribution."""
+        df = self._prepare_style_data(data)
+        
+        sns.heatmap(
+            data=df,
+            annot=True,
+            fmt='d',
+            cmap='YlOrRd',
+            ax=ax
+        )
+        
+        ax.set_title('Code Style Issues Distribution')
+        ax.set_xlabel('Issue Type')
+        ax.set_ylabel('File')
+
+    def _prepare_style_data(self, data: Dict[str, Any]) -> pd.DataFrame:
+        """Prepare style issues data for visualization."""
+        records = []
+        for file_data in data['results']:
+            file_name = Path(file_data.file_path).name
+            issues_dict = {
+                'file': file_name,
+                **{k: len(v) for k, v in file_data.style_issues.items()}
+            }
+            records.append(issues_dict)
+        
+        df = pd.DataFrame(records)
+        return df.set_index('file')
+
+class FunctionMetricsVisualization(VisualizationBase):
+    """Visualization for function-level metrics."""
+    
+    def create(self, data: Dict[str, Any]) -> Path:
+        fig, ax = self._create_figure()
+        
+        try:
+            self._plot_function_metrics(data, ax)
+            return self._save_figure(fig, "function_metrics")
+        except Exception as e:
+            logger.error(f"Failed to create function metrics visualization: {str(e)}")
+            plt.close(fig)
+            raise
+
+    def _plot_function_metrics(self, data: Dict[str, Any], ax: Axes) -> None:
+        """Plot function-level metrics."""
+        df = self._prepare_function_data(data)
+        
+        sns.scatterplot(
+            data=df,
+            x='complexity',
+            y='args_count',
+            size='lines',
+            hue='is_async',
+            ax=ax
+        )
+        
+        ax.set_title('Function Metrics Analysis')
+        ax.set_xlabel('Complexity')
+        ax.set_ylabel('Number of Arguments')
+
+    def _prepare_function_data(self, data: Dict[str, Any]) -> pd.DataFrame:
+        """Prepare function-level data for visualization."""
+        records = []
+        for file_data in data['results']:
+            for func in file_data.functions:
+                records.append({
+                    'file': Path(file_data.file_path).name,
+                    'function': func['name'],
+                    'complexity': func['complexity'],
+                    'args_count': len(func['args']),
+                    'is_async': func['is_async'],
+                    'lines': func.get('line_count', 10)  # Default size if not available
+                })
+        
+        return pd.DataFrame(records)
+
+class ProjectSummaryVisualization(VisualizationBase):
+    """Visualization for overall project metrics."""
+    
+    def create(self, data: Dict[str, Any]) -> str:
+        """Create an HTML summary of project metrics."""
+        try:
+            stats = data.get('statistics', {})
+            template = self._get_html_template()
+            
+            filled_template = template.format(
+                total_files=stats.get('file_count', 0),
+                total_lines=stats.get('total_lines', 0),
+                avg_complexity=f"{stats.get('average_complexity', 0):.2f}",
+                style_issues=f"{stats.get('style_issues_per_file', 0):.2f}",
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+            
+            output_path = self.config.output_dir / f"project_summary.html"
+            output_path.write_text(filled_template)
+            return str(output_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to create project summary: {str(e)}")
+            raise
+
+    def _get_html_template(self) -> str:
+        """Get HTML template for project summary."""
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Project Analysis Summary</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .metric {{ margin: 20px 0; padding: 10px; background: #f5f5f5; }}
+                .value {{ font-size: 24px; color: #333; }}
+                .label {{ font-size: 14px; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <h1>Project Analysis Summary</h1>
+            <div class="metric">
+                <div class="value">{total_files}</div>
+                <div class="label">Total Files Analyzed</div>
+            </div>
+            <div class="metric">
+                <div class="value">{total_lines}</div>
+                <div class="label">Total Lines of Code</div>
+            </div>
+            <div class="metric">
+                <div class="value">{avg_complexity}</div>
+                <div class="label">Average Complexity</div>
+            </div>
+            <div class="metric">
+                <div class="value">{style_issues}</div>
+                <div class="label">Style Issues per File</div>
+            </div>
+            <footer>Generated on {timestamp}</footer>
+        </body>
+        </html>
+        """
+
+class Visualization:
+    """Main visualization coordinator class."""
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = VisualizationConfig(
+            output_dir=Path(config.get('output_dir', 'visualizations')),
+            color_scheme={
+                'primary': '#2196F3',
+                'secondary': '#FF9800',
+                'error': '#F44336',
+                'success': '#4CAF50'
+            },
+            figure_size=(12, 8),
+            dpi=100,
+            output_format='png',
+            interactive=config.get('interactive', False),
+            max_points=config.get('max_points', 1000),
+            font_size=config.get('font_size', 10),
+            show_grid=config.get('show_grid', True)
+        )
+        
+        self.visualizers = {
+            'complexity': ComplexityVisualization(self.config),
+            'style': StyleIssuesVisualization(self.config),
+            'functions': FunctionMetricsVisualization(self.config),
+            'summary': ProjectSummaryVisualization(self.config)
+        }
+
+    def create_visualizations(self, analysis_results: Dict[str, Any]) -> Dict[str, Path]:
+        """Create all visualizations for the analysis results."""
+        outputs = {}
+        
+        try:
+            for name, visualizer in self.visualizers.items():
+                logger.info(f"Creating {name} visualization...")
+                outputs[name] = visualizer.create(analysis_results)
+                
+            logger.info("Successfully created all visualizations")
+            return outputs
+            
+        except Exception as e:
+            logger.error(f"Failed to create visualizations: {str(e)}")
+            raise
