@@ -2,8 +2,8 @@ from unittest.mock import Mock, patch
 import pytest
 import ast
 import logging
-from config import Config
-from code_analysis import CodeAnalysis
+from code_analyzer.config import Config
+from code_analyzer.code_analysis import CodeAnalysis
 
 @pytest.fixture
 def code_analysis():
@@ -76,16 +76,16 @@ def test_extract_imports(code_analysis):
     code = """
 import os
 import sys
-from datetime import datetime
-from math import sqrt, pi
+from code_analyzer.datetime import datetime
+from code_analyzer.math import sqrt, pi
 """
     tree = ast.parse(code)
     imports = code_analysis.extract_imports(tree)
     assert len(imports) == 4
     assert 'os' in imports
     assert 'sys' in imports
-    assert 'from datetime import datetime' in imports
-    assert 'from math import sqrt, pi' in imports
+    assert 'from code_analyzer.datetime import datetime' in imports
+    assert 'from code_analyzer.math import sqrt, pi' in imports
 
 def test_logger_setup(code_analysis):
     assert code_analysis.logger.level == logging.INFO

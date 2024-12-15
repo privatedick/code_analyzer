@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 import pytest
 import os
 import json
-from config import Config
+from code_analyzer.config import Config
 
 @pytest.fixture
 def test_config_file():

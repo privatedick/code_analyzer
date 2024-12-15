@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
-from config import Config
-from project_comparison import ProjectComparison
+from code_analyzer.config import Config
+from code_analyzer.project_comparison import ProjectComparison
 
 @pytest.fixture
 def project_comparison():
@@ -28,7 +28,7 @@ def mock_projects():
                 'functions': [{'name': 'func1'}, {'name': 'func3'}],
                 'complexity': 7,
                 'style_issues': {'line_length': ['issue1', 'issue2']},
-                'imports': ['import os', 'from datetime import datetime']
+                'imports': ['import os', 'from code_analyzer.datetime import datetime']
             },
             {
                 'file': 'file2.py',
@@ -53,7 +53,7 @@ def test_compare_projects(project_comparison, mock_projects):
         assert len(result['similar_functions']) == 1
         assert result['unique_imports'] == {
             'unique_to_project1': ['import sys'],
-            'unique_to_project2': ['from datetime import datetime', 'import pandas']
+            'unique_to_project2': ['from code_analyzer.datetime import datetime', 'import pandas']
         }
 
 def test_compare_function_counts(project_comparison, mock_projects):
@@ -84,5 +84,5 @@ def test_compare_imports(project_comparison, mock_projects):
     diff = project_comparison._compare_imports(project1, project2)
     assert diff == {
         'unique_to_project1': ['import sys'],
-        'unique_to_project2': ['from datetime import datetime', 'import pandas']
+        'unique_to_project2': ['from code_analyzer.datetime import datetime', 'import pandas']
     }

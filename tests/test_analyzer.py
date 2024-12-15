@@ -1,8 +1,8 @@
 import pytest
 import logging
 from unittest.mock import Mock, patch
-from config import Config
-from analyzer import CodeAnalyzer
+from code_analyzer.config import Config
+from code_analyzer.analyzer import CodeAnalyzer
 
 @pytest.fixture
 def analyzer():

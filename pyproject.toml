@@ -1,19 +1,26 @@
 [tool.poetry]
 name = "code_analyzer"
 version = "0.1.0"
-description = "Code Analyzer"
+description = "A tool for analyzing and visualizing code."
 authors = ["Your Name <you@example.com>"]
 license = "MIT"
 readme = "README.md"
+
+# Här definieras vilka kataloger som inkluderas som paket
+packages = [
+    { include = "code_analyzer", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 matplotlib = "^3.10.0"
 pyyaml = "^6.0.2"
-pytest = "^8.3.4"
 cryptography = "^44.0.0"
 seaborn = "^0.13.2"
 
+# pytest är inte en direkt "dependency" utan en "dev-dependency"
+[tool.poetry.dev-dependencies]
+pytest = "^8.3.4"
 
 [build-system]
 requires = ["poetry-core"]
