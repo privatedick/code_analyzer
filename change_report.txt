@@ -1,0 +1,28 @@
+[Förändringsrapport]
+
+Fil: src/code_analyzer/analyzer.py
+  Rad 4:
+    Före:  from config import Config
+    Efter: from code_analyzer.config import Config
+
+Fil: src/code_analyzer/error_fix_script.py
+  Rad 35:
+    Före:  from config import Config
+    Efter: from code_analyzer.config import Config
+
+Fil: src/code_analyzer/main.py
+  Rad 2:
+    Före:  from config import Config
+    Efter: from code_analyzer.config import Config
+
+Fil: src/code_analyzer/project_comparison.py
+  Rad 3:
+    Före:  from config import Config
+    Efter: from code_analyzer.config import Config
+
+
+[Sammanfattning]
+  Totalt antal filer granskade: 4
+  Totalt antal rader som behöver ändras: 4
+
+Alla förändringar finns dokumenterade i change_report.txt

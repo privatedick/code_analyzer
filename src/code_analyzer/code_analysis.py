@@ -8,9 +8,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Any, Set, Optional
+from typing import Dict, List, Any, Optional
 
-from config import Config
+from code_analyzer.config import Config  # Justerat importen
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,10 @@ class CodeAnalysis:
     async def analyze_project(self, project_path: str) -> Dict[str, Any]:
         """
         Analyze an entire Python project.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Dictionary containing analysis results and statistics
         """
@@ -61,7 +61,7 @@ class CodeAnalysis:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             successful_results = [
-                r for r in results 
+                r for r in results
                 if isinstance(r, AnalysisResult) and not r.error
             ]
             failed_files = [
@@ -77,7 +77,7 @@ class CodeAnalysis:
                 'failed_files': failed_files,
                 'statistics': self._calculate_project_statistics(successful_results)
             }
-            
+
         except Exception as e:
             logger.error(f"Project analysis failed: {str(e)}")
             raise
@@ -85,10 +85,10 @@ class CodeAnalysis:
     async def analyze_file(self, file_path: Path) -> AnalysisResult:
         """
         Analyze a single Python file.
-        
+
         Args:
             file_path: Path to the Python file
-            
+
         Returns:
             AnalysisResult containing detailed analysis
         """
@@ -144,13 +144,13 @@ class CodeAnalysis:
                 })
         return functions
 
-    @lru_cache(maxsize=128)
+        @lru_cache(maxsize=128)
     async def _calculate_node_complexity(self, node: ast.AST) -> int:
         """Calculate cyclomatic complexity for an AST node."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            self._executor, 
-            self._calculate_complexity_sync, 
+            self._executor,
+            self._calculate_complexity_sync,
             node
         )
 
@@ -174,7 +174,7 @@ class CodeAnalysis:
             n for n in ast.walk(tree)
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         ]
-        
+
         return {
             'total': complexity,
             'average_per_function': (
@@ -234,8 +234,7 @@ class CodeAnalysis:
     def _classify_import(self, module_name: str) -> str:
         """Classify an import as standard library, third-party, or local."""
         stdlib_modules = set(sys.stdlib_module_names)
-        first_part = module_name.split('.')[0]
-        
+        first_part = module_name.split('.')[0]                                                  
         if first_part in stdlib_modules:
             return 'standard'
         elif '.' in module_name or first_part in {'config', 'utils', 'core'}:
@@ -243,13 +242,13 @@ class CodeAnalysis:
         return 'third_party'
 
     async def _check_line_issues(
-        self, 
-        content: str, 
+        self,
+        content: str,
         issues: Dict[str, List[str]]
     ) -> None:
         """Check for line-related style issues."""
         max_length = self.config.get('max_line_length', 79)
-        
+
         for i, line in enumerate(content.splitlines(), 1):
             line = line.rstrip('\n\r')
             if len(line) > max_length:
@@ -261,9 +260,9 @@ class CodeAnalysis:
                     f"Line {i}: Contains trailing whitespace"
                 )
 
-    async def _check_naming_issues(
-        self, 
-        tree: ast.AST, 
+        async def _check_naming_issues(
+        self,
+        tree: ast.AST,
         issues: Dict[str, List[str]]
     ) -> None:
         """Check for naming convention violations."""
@@ -282,8 +281,8 @@ class CodeAnalysis:
                     )
 
     async def _check_docstring_issues(
-        self, 
-        tree: ast.AST, 
+        self,
+        tree: ast.AST,
         issues: Dict[str, List[str]]
     ) -> None:
         """Check for missing or invalid docstrings."""
@@ -302,7 +301,7 @@ class CodeAnalysis:
         return 'Any'
 
     def _calculate_project_statistics(
-        self, 
+        self,
         results: List[AnalysisResult]
     ) -> Dict[str, Any]:
         """Calculate overall project statistics."""
@@ -323,5 +322,5 @@ class CodeAnalysis:
             'style_issues_per_file': sum(
                 sum(len(issues) for issues in r.style_issues.values())
                 for r in results
-            ) / len(results)
+            ) / len(results) if results else 0
         }
