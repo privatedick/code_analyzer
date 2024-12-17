@@ -10,10 +10,15 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from code_analyzer.config import Config  # Justerat importen
+# Anpassad konfigurationsklass
+class Config:
+    def __init__(self, **kwargs):
+        self._config = kwargs
 
-logger = logging.getLogger(__name__)
+    def get(self, key, default=None):
+        return self._config.get(key, default)
 
+# Resultat för analys av filer
 @dataclass
 class AnalysisResult:
     file_path: Path
@@ -40,15 +45,6 @@ class CodeAnalysis:
         logger.setLevel(self.config.get('log_level', logging.INFO))
 
     async def analyze_project(self, project_path: str) -> Dict[str, Any]:
-        """
-        Analyze an entire Python project.
-
-        Args:
-            project_path: Path to the project directory
-
-        Returns:
-            Dictionary containing analysis results and statistics
-        """
         try:
             project_path = Path(project_path)
             if not project_path.is_dir():
@@ -83,15 +79,6 @@ class CodeAnalysis:
             raise
 
     async def analyze_file(self, file_path: Path) -> AnalysisResult:
-        """
-        Analyze a single Python file.
-
-        Args:
-            file_path: Path to the Python file
-
-        Returns:
-            AnalysisResult containing detailed analysis
-        """
         try:
             content = file_path.read_text(encoding='utf-8')
             tree = ast.parse(content)
@@ -127,7 +114,6 @@ class CodeAnalysis:
             )
 
     async def _analyze_functions(self, tree: ast.AST) -> List[Dict[str, Any]]:
-        """Analyze functions and their properties in the AST."""
         functions = []
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -144,9 +130,8 @@ class CodeAnalysis:
                 })
         return functions
 
-        @lru_cache(maxsize=128)
+    @lru_cache(maxsize=128)
     async def _calculate_node_complexity(self, node: ast.AST) -> int:
-        """Calculate cyclomatic complexity for an AST node."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
             self._executor,
@@ -155,7 +140,6 @@ class CodeAnalysis:
         )
 
     def _calculate_complexity_sync(self, node: ast.AST) -> int:
-        """Synchronous implementation of complexity calculation."""
         complexity = 1
         for child in ast.walk(node):
             if isinstance(child, (
@@ -168,7 +152,7 @@ class CodeAnalysis:
         return complexity
 
     async def _analyze_complexity(self, tree: ast.AST) -> Dict[str, Any]:
-        """Analyze overall code complexity metrics."""
+        """Analysera övergripande komplexitetsmetrik."""
         complexity = await self._calculate_node_complexity(tree)
         functions = [
             n for n in ast.walk(tree)
@@ -184,7 +168,7 @@ class CodeAnalysis:
         }
 
     async def _analyze_style(self, content: str, tree: ast.AST) -> Dict[str, List[str]]:
-        """Analyze code style and conformance to standards."""
+        """Analysera kodstil och konventioner."""
         issues = {
             'line_length': [],
             'naming': [],
@@ -192,14 +176,16 @@ class CodeAnalysis:
             'docstring': []
         }
 
-        await self._check_line_issues(content, issues)
-        await self._check_naming_issues(tree, issues)
-        await self._check_docstring_issues(tree, issues)
+        await asyncio.gather(
+            self._check_line_issues(content, issues),
+            self._check_naming_issues(tree, issues),
+            self._check_docstring_issues(tree, issues)
+        )
 
         return issues
 
     async def _analyze_imports(self, tree: ast.AST) -> Dict[str, Any]:
-        """Analyze import statements and their organization."""
+        """Analysera import-satser och deras organisation."""
         imports = {'standard': [], 'third_party': [], 'local': []}
         import_lines = []
 
@@ -218,9 +204,7 @@ class CodeAnalysis:
                     import_type = self._classify_import(node.module)
                     imports[import_type].append({
                         'from': node.module,
-                        'names': [
-                            (n.name, n.asname) for n in node.names
-                        ],
+                        'names': [(n.name, n.asname) for n in node.names],
                         'line': node.lineno
                     })
                     import_lines.append(node.lineno)
@@ -232,9 +216,9 @@ class CodeAnalysis:
         }
 
     def _classify_import(self, module_name: str) -> str:
-        """Classify an import as standard library, third-party, or local."""
+        """Klassificera en import som standardbibliotek, tredjeparts eller lokal."""
         stdlib_modules = set(sys.stdlib_module_names)
-        first_part = module_name.split('.')[0]                                                  
+        first_part = module_name.split('.')[0]
         if first_part in stdlib_modules:
             return 'standard'
         elif '.' in module_name or first_part in {'config', 'utils', 'core'}:
@@ -242,11 +226,9 @@ class CodeAnalysis:
         return 'third_party'
 
     async def _check_line_issues(
-        self,
-        content: str,
-        issues: Dict[str, List[str]]
+        self, content: str, issues: Dict[str, List[str]]
     ) -> None:
-        """Check for line-related style issues."""
+        """Kontrollera linjer för längd- och whitespaceproblem."""
         max_length = self.config.get('max_line_length', 79)
 
         for i, line in enumerate(content.splitlines(), 1):
@@ -260,12 +242,10 @@ class CodeAnalysis:
                     f"Line {i}: Contains trailing whitespace"
                 )
 
-        async def _check_naming_issues(
-        self,
-        tree: ast.AST,
-        issues: Dict[str, List[str]]
+    async def _check_naming_issues(
+        self, tree: ast.AST, issues: Dict[str, List[str]]
     ) -> None:
-        """Check for naming convention violations."""
+        """Kontrollera namngivningskonventioner."""
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if not re.match(r'^[a-z_][a-z0-9_]*$', node.name):
@@ -281,11 +261,9 @@ class CodeAnalysis:
                     )
 
     async def _check_docstring_issues(
-        self,
-        tree: ast.AST,
-        issues: Dict[str, List[str]]
+        self, tree: ast.AST, issues: Dict[str, List[str]]
     ) -> None:
-        """Check for missing or invalid docstrings."""
+        """Kontrollera docstrings för funktioner och klasser."""
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 if not ast.get_docstring(node):
@@ -295,16 +273,15 @@ class CodeAnalysis:
                     )
 
     def _get_return_annotation(self, node: ast.FunctionDef) -> str:
-        """Get the return type annotation of a function."""
+        """Hämta returtyp-annotering från en funktion."""
         if node.returns:
             return ast.unparse(node.returns)
         return 'Any'
 
     def _calculate_project_statistics(
-        self,
-        results: List[AnalysisResult]
+        self, results: List[AnalysisResult]
     ) -> Dict[str, Any]:
-        """Calculate overall project statistics."""
+        """Beräkna övergripande statistik för projektet."""
         if not results:
             return {}
 
@@ -324,3 +301,6 @@ class CodeAnalysis:
                 for r in results
             ) / len(results) if results else 0
         }
+
+# Setup för att använda logging korrekt
+logger = logging.getLogger(__name__)

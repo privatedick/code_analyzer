@@ -35,7 +35,7 @@ class VisualizationConfig:
 
 class VisualizationBase(ABC):
     """Base class for all visualizations."""
-    
+
     def __init__(self, config: VisualizationConfig):
         self.config = config
         self._setup_style()
@@ -62,7 +62,7 @@ class VisualizationBase(ABC):
         timestamp = datetime.now().strftime(self.config.timestamp_format)
         filename = f"{name}_{timestamp}.{self.config.output_format}"
         output_path = self.config.output_dir / filename
-        
+
         try:
             fig.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
             logger.info(f"Saved visualization to {output_path}")
@@ -80,10 +80,10 @@ class VisualizationBase(ABC):
 
 class ComplexityVisualization(VisualizationBase):
     """Visualization for code complexity metrics."""
-    
+
     def create(self, data: Dict[str, Any]) -> Path:
         fig, ax = self._create_figure()
-        
+
         try:
             self._plot_complexity_data(data, ax)
             return self._save_figure(fig, "complexity_analysis")
@@ -95,7 +95,7 @@ class ComplexityVisualization(VisualizationBase):
     def _plot_complexity_data(self, data: Dict[str, Any], ax: Axes) -> None:
         """Plot complexity metrics."""
         df = self._prepare_complexity_data(data)
-        
+
         sns.barplot(
             data=df,
             x='file',
@@ -103,7 +103,7 @@ class ComplexityVisualization(VisualizationBase):
             hue='type',
             ax=ax
         )
-        
+
         ax.set_title('Code Complexity Analysis')
         ax.set_xlabel('Files')
         ax.set_ylabel('Complexity Score')
@@ -113,27 +113,27 @@ class ComplexityVisualization(VisualizationBase):
         """Prepare complexity data for visualization."""
         records = []
         for file_data in data['results']:
-            file_name = Path(file_data.file_path).name
+            file_name = Path(file_data['file_path']).name
             records.append({
                 'file': file_name,
-                'complexity': file_data.complexity['total'],
+                'complexity': file_data['complexity']['total'],
                 'type': 'Total'
             })
-            if 'average_per_function' in file_data.complexity:
+            if 'average_per_function' in file_data['complexity']:
                 records.append({
                     'file': file_name,
-                    'complexity': file_data.complexity['average_per_function'],
+                    'complexity': file_data['complexity']['average_per_function'],
                     'type': 'Per Function'
                 })
-        
+
         return pd.DataFrame(records)
 
 class StyleIssuesVisualization(VisualizationBase):
     """Visualization for code style issues."""
-    
+
     def create(self, data: Dict[str, Any]) -> Path:
         fig, ax = self._create_figure()
-        
+
         try:
             self._plot_style_issues(data, ax)
             return self._save_figure(fig, "style_issues")
@@ -145,7 +145,7 @@ class StyleIssuesVisualization(VisualizationBase):
     def _plot_style_issues(self, data: Dict[str, Any], ax: Axes) -> None:
         """Plot style issues distribution."""
         df = self._prepare_style_data(data)
-        
+
         sns.heatmap(
             data=df,
             annot=True,
@@ -153,7 +153,7 @@ class StyleIssuesVisualization(VisualizationBase):
             cmap='YlOrRd',
             ax=ax
         )
-        
+
         ax.set_title('Code Style Issues Distribution')
         ax.set_xlabel('Issue Type')
         ax.set_ylabel('File')
@@ -162,22 +162,22 @@ class StyleIssuesVisualization(VisualizationBase):
         """Prepare style issues data for visualization."""
         records = []
         for file_data in data['results']:
-            file_name = Path(file_data.file_path).name
+            file_name = Path(file_data['file_path']).name
             issues_dict = {
                 'file': file_name,
-                **{k: len(v) for k, v in file_data.style_issues.items()}
+                **{k: len(v) for k, v in file_data['style_issues'].items()}
             }
             records.append(issues_dict)
-        
+
         df = pd.DataFrame(records)
         return df.set_index('file')
 
 class FunctionMetricsVisualization(VisualizationBase):
     """Visualization for function-level metrics."""
-    
+
     def create(self, data: Dict[str, Any]) -> Path:
         fig, ax = self._create_figure()
-        
+
         try:
             self._plot_function_metrics(data, ax)
             return self._save_figure(fig, "function_metrics")
@@ -189,7 +189,7 @@ class FunctionMetricsVisualization(VisualizationBase):
     def _plot_function_metrics(self, data: Dict[str, Any], ax: Axes) -> None:
         """Plot function-level metrics."""
         df = self._prepare_function_data(data)
-        
+
         sns.scatterplot(
             data=df,
             x='complexity',
@@ -198,7 +198,7 @@ class FunctionMetricsVisualization(VisualizationBase):
             hue='is_async',
             ax=ax
         )
-        
+
         ax.set_title('Function Metrics Analysis')
         ax.set_xlabel('Complexity')
         ax.set_ylabel('Number of Arguments')
@@ -207,83 +207,21 @@ class FunctionMetricsVisualization(VisualizationBase):
         """Prepare function-level data for visualization."""
         records = []
         for file_data in data['results']:
-            for func in file_data.functions:
+            for func in file_data['functions']:
                 records.append({
-                    'file': Path(file_data.file_path).name,
+                    'file': Path(file_data['file_path']).name,
                     'function': func['name'],
                     'complexity': func['complexity'],
                     'args_count': len(func['args']),
                     'is_async': func['is_async'],
                     'lines': func.get('line_count', 10)  # Default size if not available
                 })
-        
+
         return pd.DataFrame(records)
-
-class ProjectSummaryVisualization(VisualizationBase):
-    """Visualization for overall project metrics."""
-    
-    def create(self, data: Dict[str, Any]) -> str:
-        """Create an HTML summary of project metrics."""
-        try:
-            stats = data.get('statistics', {})
-            template = self._get_html_template()
-            
-            filled_template = template.format(
-                total_files=stats.get('file_count', 0),
-                total_lines=stats.get('total_lines', 0),
-                avg_complexity=f"{stats.get('average_complexity', 0):.2f}",
-                style_issues=f"{stats.get('style_issues_per_file', 0):.2f}",
-                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            )
-            
-            output_path = self.config.output_dir / f"project_summary.html"
-            output_path.write_text(filled_template)
-            return str(output_path)
-            
-        except Exception as e:
-            logger.error(f"Failed to create project summary: {str(e)}")
-            raise
-
-    def _get_html_template(self) -> str:
-        """Get HTML template for project summary."""
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Project Analysis Summary</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                .metric {{ margin: 20px 0; padding: 10px; background: #f5f5f5; }}
-                .value {{ font-size: 24px; color: #333; }}
-                .label {{ font-size: 14px; color: #666; }}
-            </style>
-        </head>
-        <body>
-            <h1>Project Analysis Summary</h1>
-            <div class="metric">
-                <div class="value">{total_files}</div>
-                <div class="label">Total Files Analyzed</div>
-            </div>
-            <div class="metric">
-                <div class="value">{total_lines}</div>
-                <div class="label">Total Lines of Code</div>
-            </div>
-            <div class="metric">
-                <div class="value">{avg_complexity}</div>
-                <div class="label">Average Complexity</div>
-            </div>
-            <div class="metric">
-                <div class="value">{style_issues}</div>
-                <div class="label">Style Issues per File</div>
-            </div>
-            <footer>Generated on {timestamp}</footer>
-        </body>
-        </html>
-        """
 
 class Visualization:
     """Main visualization coordinator class."""
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = VisualizationConfig(
             output_dir=Path(config.get('output_dir', 'visualizations')),
@@ -296,31 +234,22 @@ class Visualization:
             figure_size=(12, 8),
             dpi=100,
             output_format='png',
-            interactive=config.get('interactive', False),
-            max_points=config.get('max_points', 1000),
-            font_size=config.get('font_size', 10),
-            show_grid=config.get('show_grid', True)
+            interactive=config.get('interactive', False)
         )
-        
+
         self.visualizers = {
             'complexity': ComplexityVisualization(self.config),
             'style': StyleIssuesVisualization(self.config),
-            'functions': FunctionMetricsVisualization(self.config),
-            'summary': ProjectSummaryVisualization(self.config)
+            'functions': FunctionMetricsVisualization(self.config)
         }
 
     def create_visualizations(self, analysis_results: Dict[str, Any]) -> Dict[str, Path]:
         """Create all visualizations for the analysis results."""
         outputs = {}
-        
-        try:
-            for name, visualizer in self.visualizers.items():
-                logger.info(f"Creating {name} visualization...")
-                outputs[name] = visualizer.create(analysis_results)
-                
-            logger.info("Successfully created all visualizations")
-            return outputs
-            
-        except Exception as e:
-            logger.error(f"Failed to create visualizations: {str(e)}")
-            raise
+
+        for name, visualizer in self.visualizers.items():
+            logger.info(f"Creating {name} visualization...")
+            outputs[name] = visualizer.create(analysis_results)
+
+        logger.info("Successfully created all visualizations")
+        return outputs

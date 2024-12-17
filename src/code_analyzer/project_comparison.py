@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 import difflib
-from config import Config
-from code_analysis import CodeAnalysis
+from src.code_analyzer.config import Config
+from src.code_analyzer.code_analysis import CodeAnalysis
 
 class ProjectComparison:
     def __init__(self, config: Config):
