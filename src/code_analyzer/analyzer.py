@@ -1,10 +1,10 @@
 
 import logging
 from typing import Dict, Any
-from config import Config
-from code_analysis import CodeAnalysis
-from project_comparison import ProjectComparison
-from visualization import Visualization
+from src.code_analyzer.config import Config
+from src.code_analyzer.code_analysis import CodeAnalysis
+from src.code_analyzer.project_comparison import ProjectComparison
+from src.code_analyzer.visualization import Visualization
 
 class CodeAnalyzer:
     def __init__(self, config: Config):

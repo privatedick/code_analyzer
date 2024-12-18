@@ -2,8 +2,8 @@ from unittest.mock import Mock, patch
 import pytest
 import ast
 import logging
-from code_analyzer.config import Config
-from code_analyzer.code_analysis import CodeAnalysis
+from src.code_analyzer.config import Config
+from src.code_analyzer.code_analysis import CodeAnalysis
 
 @pytest.fixture
 def code_analysis():
@@ -49,8 +49,6 @@ def complex_func(x):
 
 def test_check_style(code_analysis):
     code = """
-import sys
-import os
 
 def badFunctionName(x):
     VeryLongVariableName = x + 1
@@ -74,10 +72,6 @@ print("This is a very long line that definitely exceeds the maximum line length 
 
 def test_extract_imports(code_analysis):
     code = """
-import os
-import sys
-from code_analyzer.datetime import datetime
-from code_analyzer.math import sqrt, pi
 """
     tree = ast.parse(code)
     imports = code_analysis.extract_imports(tree)

@@ -1,6 +1,6 @@
 import argparse
-from config import Config
-from analyzer import CodeAnalyzer
+from src.code_analyzer.config import Config
+from src.code_analyzer.analyzer import CodeAnalyzer
 
 def main():
     # Skapa en parser för kommandoradsargument

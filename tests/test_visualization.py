@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 import pytest
 from unittest.mock import patch, MagicMock
-from code_analyzer.visualization import Visualization
+from src.code_analyzer.visualization import Visualization
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd

@@ -3,7 +3,8 @@ import pytest
 import os
 import json
 import yaml
-from src.code_analyzer.config import Config  # Uppdaterad import
+from src.code_analyzer.config import Config
+from src.code_analyzer.config import ConfigValue, ConfigValueType
 
 @pytest.fixture
 def test_config_file():

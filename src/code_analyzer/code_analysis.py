@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+from src.code_analyzer.config import Config
 
 # Anpassad konfigurationsklass
 class Config:

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
-from code_analyzer.config import Config
-from code_analyzer.project_comparison import ProjectComparison
+from src.code_analyzer.config import Config
+from src.code_analyzer.project_comparison import ProjectComparison
 
 @pytest.fixture
 def project_comparison():

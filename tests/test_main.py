@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 import pytest
 from unittest.mock import patch, MagicMock
-from code_analyzer.main import main
+from src.code_analyzer.main import main
 
 def test_main_analyze():
     with patch('argparse.ArgumentParser.parse_args') as mock_args, \
